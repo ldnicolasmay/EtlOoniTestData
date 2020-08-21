@@ -1,0 +1,7 @@
+# OONI S3 bucket and prefix
+ooni {
+  bucketName="ooni-data"
+  prefixRoot="autoclaved/jsonl/",
+  prefixPostfixes=["2020-05-0", "2020-05-1", "2020-05-2", "2020-05-3"],
+  targetTestNames=["http_requests", "meek_fronted_requests_test", "psiphon", "tor", "vanilla_tor"]
+}

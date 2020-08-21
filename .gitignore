@@ -1,0 +1,9 @@
+.idea/
+lib/
+project/
+target/
+
+*.json
+*.dat
+
+aws.conf

@@ -1,0 +1,8 @@
+# Ignore everything
+*
+
+# Except this .gitignore
+!.gitignore
+!aws.conf.template
+!ooni.conf
+!ooni.conf.template

@@ -1,0 +1,5 @@
+# ~/.aws credentials
+aws {
+  awsAccessKeyId="XXXXXXX"
+  awsSecretAccessKey="XXXXXXXXXXX"
+}
