@@ -2,6 +2,7 @@
 lib/
 project/
 target/
+archive/
 
 *.json
 *.dat

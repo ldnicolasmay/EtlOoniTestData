@@ -10,7 +10,7 @@ package object EtlOoniTestData {
 
     val spark: SparkSession = SparkSession
       .builder()
-      .appName("OoniEtl")
+      .appName("EtlOoniTestData")
       .config("fs.s3.awsAccessKeyId", awsAccessKeyId)
       .config("fs.s3.awsSecretAccessKey", awsSecretAccessKey)
       .config("fs.s3a.access.key", awsAccessKeyId)
