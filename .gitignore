@@ -6,5 +6,11 @@ archive/
 
 *.json
 *.dat
+*.ods*
+*.sc
+*.sh
+
+Foo*
+Bar*
 
 aws.conf

@@ -2,7 +2,6 @@ import org.apache.spark.sql.catalyst.encoders.{ExpressionEncoder, RowEncoder}
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.{Row, SparkSession}
 
-
 package object EtlOoniTestData {
 
   def createSparkSession(awsAccessKeyId: String, awsSecretAccessKey: String): SparkSession = {
@@ -20,7 +19,7 @@ package object EtlOoniTestData {
       .config("spark.hadoop.fs.s3a.secret.key", awsSecretAccessKey)
       .config("spark.hadoop.fs.s3a.multiobjectdelete.enable", "false")
       .config("spark.hadoop.fs.s3a.fast.upload", "true")
-      .master("local[*]") // comment out when running with spark-submit
+      // .master("local[*]") // comment out when running with spark-submit
       .getOrCreate()
 
     spark.sparkContext.setLogLevel("ERROR")
