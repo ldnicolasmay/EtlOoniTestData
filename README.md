@@ -1,7 +1,20 @@
 # ETL OONI Test Data
 
+## Overview
 
-## Setup
+This app is the second of three that fits into a pipeline for a larger project, an Open Observatory of Network Interference (OONI) Data Lake project.
+
+## Purpose
+
+The purpose of this app is to use the filtered S3 keys from the [FilterOoniS3Keys](https://github.com/ldnicolasmay/FilterOoniS3Keys) app to extract only relevant OONI test data from the S3 keys, transform the data into a star schema model, and load the data back into an S3 bucket that serves as the data lake.
+
+This app takes care of the data in the middle third of the diagram that follow:
+
+![Udacity Capstone Project Pipeline](img/UdacityCapstoneProject-Pipeline.svg "Udacity Capstone Project Pipeline")
+
+## Running the App
+
+### Setup
 
 1. **Local Terminal**: Package Spark app
 
@@ -34,7 +47,7 @@
    cd EtlOoniTestData
    ```
 
-## Run
+### Run
 
 1. **Remote Terminal**
 
