@@ -9,8 +9,6 @@ archive/
 *.ods*
 *.sc
 *.sh
-
-Foo*
-Bar*
+*.R
 
 aws.conf

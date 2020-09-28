@@ -9,6 +9,16 @@
    sbt package
    ```
 
+   ```shell script
+   EMR_URL="ec2-xxx-xxx-xxx-xxx.compute-1.amazonaws.com" && \
+     EMR_PEM="/home/hynso/aws_pems/spark-cluster-emr-us-east-1.pem"
+   ```
+
+   ```shell script
+   rsync -au -e "ssh -i ${EMR_PEM}" \
+     /home/hynso/Documents/Learning/DataEngineering/EtlOoniTestData/ \
+     "hadoop@${EMR_URL}:/home/hadoop/EtlOoniTestData/"
+   ```
 2. **Remote Terminal**: Login to Amazon EMR cluster; Prepare home folder
 
    ```shell script
@@ -21,22 +31,12 @@
    ```
    
    ```shell script
-   mkdir EtlOoniTestData && cd EtlOoniTestData
+   cd EtlOoniTestData
    ```
 
-3. **Local Terminal**: Sync app project to remote cluster
+## Run
 
-   ```shell script
-   EMR_URL="ec2-xxx-xxx-xxx-xxx.compute-1.amazonaws.com" && \
-     EMR_PEM="/home/hynso/aws_pems/spark-cluster-emr-us-east-1.pem"
-   ```
-
-   ```shell script
-   rsync -au -e "ssh -i ${EMR_PEM}" \
-     /home/hynso/Documents/Learning/DataEngineering/EtlOoniTestData/ \
-     "hadoop@${EMR_URL}:/home/hadoop/EtlOoniTestData/"
-   ```
-4. **Remote Terminal**
+1. **Remote Terminal**
 
    a. If you want to run the ETL Spark app, define the class for the OONI ETL main method:
    

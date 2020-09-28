@@ -1,24 +1,16 @@
 package EtlOoniTestData
 
-import java.io.{File, FileNotFoundException, IOException}
-
-import AwsConfig.{awsAccessKeyId, awsSecretAccessKey}
-import OoniConfig.{ooniBucketName, ooniPrefixDates, ooniTargetTestNames}
-import PersistentS3Client.s3Client
+import EtlOoniTestData.AwsConfig.{awsAccessKeyId, awsSecretAccessKey}
+import EtlOoniTestData.OoniConfig.{ooniBucketName, ooniPrefixDates, ooniTargetTestNames}
 import com.amazonaws.AmazonServiceException
-import com.amazonaws.auth.BasicAWSCredentials
-import com.amazonaws.regions.{Region, Regions}
 import com.amazonaws.services.s3.model.{S3Object, S3ObjectInputStream}
 import org.apache.hadoop.yarn.util.RackResolver
 import org.apache.log4j.{Level, Logger}
-//import com.typesafe.config.{Config, ConfigFactory}
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.{Dataset, Row, SparkSession}
 
-import scala.annotation.tailrec
-//import scala.collection.JavaConversions._
 import scala.io.Source
 
 object OoniEtl {
@@ -26,14 +18,14 @@ object OoniEtl {
   /**
    * ETLs base data for each OONI test following star schema data model
    *
-   * @param spark          Spark session
-   * @param s3Client       S3 client for interacting with AWS S3
-   * @param targetBucketName     Target S3 bucket name
-   * @param keyPrefix      Target S3 key prefix, e.g., "parquet/ooni"
-   * @param ooniBucketName OONI S3 bucket name
-   * @param testName       OONI test name, e.g., "http_requests"
-   * @param date           Date, e.g., "2020-01"
-   * @param s3Keys         S3 keys loaded from S3 bucket
+   * @param spark            Spark session
+   * @param s3Client         S3 client for interacting with AWS S3
+   * @param targetBucketName Target S3 bucket name
+   * @param keyPrefix        Target S3 key prefix, e.g., "parquet/ooni"
+   * @param ooniBucketName   OONI S3 bucket name
+   * @param testName         OONI test name, e.g., "http_requests"
+   * @param date             Date, e.g., "2020-01"
+   * @param s3Keys           S3 keys loaded from S3 bucket
    */
   def etlTargetTestData(
                          spark: SparkSession,
@@ -46,6 +38,7 @@ object OoniEtl {
                          s3Keys: List[String]): Unit = {
     import spark.implicits._
     val sc: SparkContext = spark.sparkContext
+
 
     /*=============================================*/
     /*=== EXTRACT: Get Data from OONI S3 Bucket ===*/
@@ -76,6 +69,7 @@ object OoniEtl {
       .schema(ooniSchemas(testName))
       .json(targetTestRdd.toDS)
       .as(ooniEncoders(testName))
+
 
     /*================================================================*/
     /*=== TRANSFORM: Filter Data, Create Fact and Dimension Tables ===*/
@@ -123,6 +117,7 @@ object OoniEtl {
       .select("report_id", "report_filename")
       .dropDuplicates()
 
+
     /*====================================*/
     /*=== LOAD: Write as parquet to S3 ===*/
 
@@ -150,7 +145,6 @@ object OoniEtl {
       partitions = Seq("year", "month"),
       retries = 0)
 
-
     // Write Report Table (dimension) as parquet to S3
     writeTableToS3Parquet(
       table = targetOoniReportTable,
@@ -166,131 +160,12 @@ object OoniEtl {
     filteredTargetTestDs.unpersist()
   }
 
-  /**
-   * Writes Spark Dataset in parquet format to S3 bucket
-   *
-   * @param table      Spark Dataset table
-   * @param tableName  Name of Dataset table, e.g., "report_table"
-   * @param bucket     Target S3 bucket
-   * @param keyPrefix  Target key prefix, e.g., "parquet/ooni"
-   * @param testName   Name of test, e.g., "http_requests"
-   * @param date       Date, e.g., "2020-01"
-   * @param mode       Write mode, "overwrite"/"append"
-   * @param partitions Parquet partitions, e.g., Seq("year", "month")
-   * @param retries    Current number of retries for exponential backoff
-   */
-  @tailrec
-  def writeTableToS3Parquet(
-                             table: Dataset[Row],
-                             tableName: String,
-                             bucket: String,
-                             keyPrefix: String,
-                             testName: String,
-                             date: String,
-                             mode: String,
-                             partitions: Seq[String],
-                             retries: Int): Unit = {
-    val MAX_RETRIES: Int = 5
-
-    if (retries < MAX_RETRIES) { // implement exponential backoff
-      val sleepTime: Long = (Math.pow(2, retries) * 500).toLong
-      Thread.sleep(sleepTime)
-
-      try {
-        if (partitions.isEmpty) {
-          table.write
-            .mode(mode)
-            .parquet(s"s3a://${bucket}/${keyPrefix}/${testName}/${tableName}/${date}.parquet")
-        } else {
-          table.write
-            .partitionBy(partitions: _*)
-            .mode(mode)
-            .parquet(s"s3a://${bucket}/${keyPrefix}/${testName}/${tableName}/${date}.parquet")
-        }
-        println(s"Written: s3a://${bucket}/${keyPrefix}/${testName}/${tableName}/${date}.parquet")
-      } catch {
-        case e: Exception =>
-          System.err.println(s"Error writing to S3 bucket: tableName=${tableName} testName=${testName} date=${date}")
-          writeTableToS3Parquet(table, tableName, bucket, keyPrefix, testName, date, mode, partitions, retries + 1)
-      }
-    }
-    else {
-      ()
-    }
-  }
 
   /**
-   * Retrieve relevant S3 key names
+   * Driver method for OONI ETL Spark app
    *
-   * @param bucketName    Source S3 bucket, e.g., "udacity-ooni-project"
-   * @param s3Client      S3 client for interacting with AWS S3
-   * @param keyPrefix     Source key prefix, e.g., "keys"
-   * @param keySuffixRoot Source key suffix root, e.g., "ooni_s3_keys"
-   * @param retries       Current number of retries for exponential backoff
-   * @param filterString  String to filter on S3 key names
-   * @param keySuffixStem Key suffix stem, e.g., "ooni_s3_keys_"
-   * @return
+   * @param args Arguments passed to main method
    */
-  def getS3KeyLines(
-                     bucketName: String,
-                     s3Client: SerializableAmazonS3Client,
-                     keyPrefix: String,
-                     keySuffixRoot: String,
-                     retries: Int
-                   )(filterString: String,
-                     keySuffixStem: String): List[String] = {
-    val MAX_RETRIES: Int = 5
-
-    val key = s"$keyPrefix/$keySuffixRoot$keySuffixStem.dat"
-    println(s"${filterString} -- s3://${bucketName}/${key}")
-
-    if (retries < MAX_RETRIES) { // implement exponential backoff
-      val sleepTime: Long = (Math.pow(2, retries) * 500).toLong
-      Thread.sleep(sleepTime)
-
-      val s3Object: S3Object = s3Client.getObject(bucketName, key)
-      val s3ObjectInputStream: S3ObjectInputStream = s3Object.getObjectContent
-
-      try {
-        Source.fromInputStream(s3ObjectInputStream)
-          .getLines()
-          .filter(_.contains(filterString))
-          .toList
-      }
-      catch {
-        case e: AmazonServiceException => {
-          System.err.println(s"Error getting s3 key: " +
-            s"bucketName=${bucketName} keyPrefix=${keyPrefix} " +
-            s"keySuffixRoot=${keySuffixRoot} keySuffixStem=${keySuffixStem}")
-          getS3KeyLines(bucketName, s3Client, keyPrefix, keySuffixRoot, retries + 1)(filterString, keySuffixStem)
-          // getS3KeyLines(bucketName, keyPrefix, keySuffixRoot, retries + 1)(filterString, keySuffixStem)
-        }
-        case e: FileNotFoundException => {
-          System.err.println(s"Error getting s3 key: " +
-            s"bucketName=${bucketName} keyPrefix=${keyPrefix} " +
-            s"keySuffixRoot=${keySuffixRoot} keySuffixStem=${keySuffixStem}")
-          e.printStackTrace()
-          System.exit(1)
-          List()
-        }
-        case e: IOException => {
-          System.err.println(s"Error getting s3 key: " +
-            s"bucketName=${bucketName} keyPrefix=${keyPrefix} " +
-            s"keySuffixRoot=${keySuffixRoot} keySuffixStem=${keySuffixStem}")
-          getS3KeyLines(bucketName, s3Client, keyPrefix, keySuffixRoot, retries + 1)(filterString, keySuffixStem)
-          // getS3KeyLines(bucketName, keyPrefix, keySuffixRoot, retries + 1)(filterString, keySuffixStem)
-        }
-      }
-      finally {
-        s3ObjectInputStream.close()
-        s3Object.close()
-      }
-    }
-    else {
-      List()
-    }
-  }
-
   def main(args: Array[String]): Unit = {
 
     // Logger
@@ -311,14 +186,29 @@ object OoniEtl {
     val testDateKeys: List[(String, String, List[String])] = for {
       test <- ooniTargetTestNames
       date <- ooniPrefixDates
-       s3Keys = getS3KeyLines(targetBucketName, s3Client, "keys", "ooni_s3_keys_", 0)(test, date)
+      s3Keys = getS3KeyLines(
+        targetBucketName,
+        s3Client,
+        "keys",
+        "ooni_s3_keys_",
+        0)(
+        test,
+        date)
     } yield (test, date, s3Keys)
 
     val spark: SparkSession = createSparkSession(awsAccessKeyId, awsSecretAccessKey)
 
     testDateKeys.foreach {
       case (test, date, s3Keys) =>
-         etlTargetTestData(spark, s3Client, targetBucketName, "parquet/ooni", ooniBucketName)(test, date, s3Keys)
+        etlTargetTestData(
+          spark,
+          s3Client,
+          targetBucketName,
+          "parquet/ooni",
+          ooniBucketName)(
+          test,
+          date,
+          s3Keys)
     }
 
     spark.stop()
